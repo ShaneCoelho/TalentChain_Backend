@@ -3,6 +3,9 @@ const mongoose = require('mongoose')
 const jwt = require('jsonwebtoken')
 const router = express.Router();
 const Users = mongoose.model('Users');
+const { googleAuth } = require('../controllers/authController');
+
+router.get("/google", googleAuth);
 
 
 router.post('/signup', async (req, res) => {
