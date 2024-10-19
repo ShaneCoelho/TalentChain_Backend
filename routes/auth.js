@@ -46,8 +46,11 @@ router.post('/signin', async (req, res) => {
             return res.status(401).send({ error: "Invalid credentials" });
         }
 
+        const role = user.role;
+        const existingUser = user.existingUser;
+
         const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
-        res.send({ token });
+        res.send({ token, role, existingUser });
     } catch (err) {
         return res.status(500).send({ error: "Internal server error" });
     }

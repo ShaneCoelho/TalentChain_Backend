@@ -24,12 +24,17 @@ exports.googleAuth = async (req, res, next) => {
                 image: picture,
             });
         }
+
+        const existingUser = user.existingUser;
+        const role = user.role;
         const { _id } = user;
         const token = jwt.sign({ userId: _id }, process.env.JWT_SECRET);
         res.status(200).json({
             message: 'success',
             token,
             user,
+            existingUser,
+            role
         });
     } catch (err) {
         res.status(500).json({

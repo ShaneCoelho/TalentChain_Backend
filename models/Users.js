@@ -17,6 +17,16 @@ const usersSchema = new mongoose.Schema({
 
     password: {
         type: String,
+    },
+
+    role: {
+        type: String,
+        default: "freelancer"
+    },
+
+    existingUser: {
+        type: Boolean,
+        default: false
     }
 
 })
