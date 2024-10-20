@@ -27,7 +27,15 @@ const usersSchema = new mongoose.Schema({
     existingUser: {
         type: Boolean,
         default: false
-    }
+    },
+
+    phone: {
+        type: String,
+    },
+
+    skills: {
+        type: Array,
+    },
 
 })
 
