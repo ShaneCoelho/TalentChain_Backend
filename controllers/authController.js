@@ -27,6 +27,7 @@ exports.googleAuth = async (req, res, next) => {
 
         const existingUser = user.existingUser;
         const role = user.role;
+        const image=user.image;
         const { _id } = user;
         const token = jwt.sign({ userId: _id }, process.env.JWT_SECRET);
         res.status(200).json({
@@ -34,7 +35,9 @@ exports.googleAuth = async (req, res, next) => {
             token,
             user,
             existingUser,
-            role
+            role,
+            name,
+            image
         });
     } catch (err) {
         res.status(500).json({

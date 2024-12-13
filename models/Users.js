@@ -21,7 +21,7 @@ const usersSchema = new mongoose.Schema({
 
     role: {
         type: String,
-        default: "freelancer"
+        default: ""
     },
 
     existingUser: {
@@ -33,7 +33,15 @@ const usersSchema = new mongoose.Schema({
         type: String,
     },
 
+    regno: {
+        type: String,
+    },
+
     skills: {
+        type: Array,
+    },
+
+    companytype: {
         type: Array,
     },
 
