@@ -1,6 +1,7 @@
 const express = require('express')
 const mongoose = require('mongoose')
 const jwt = require('jsonwebtoken')
+const fetchusers = require('../middleware/fetchusers');
 const router = express.Router();
 const Users = mongoose.model('Users');
 const { googleAuth } = require('../controllers/authController');
@@ -59,5 +60,27 @@ router.post('/signin', async (req, res) => {
     }
 });
 
+router.post('/user_is', fetchusers, async (req, res) => {
+
+    const userId = req.user.id;
+    try {
+        // Find the user by ID
+        const user = await Users.findById(userId);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Return the role field
+        res.status(200).send({
+            role: user.role,
+            name: user.name,
+            image: user.image || null, // Send null if image is not provided
+        });
+    } catch (error) {
+        console.error('Error fetching user role:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 
 module.exports = router
