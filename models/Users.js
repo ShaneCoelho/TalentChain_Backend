@@ -1,6 +1,33 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt')
 
+const campaignSchema = new mongoose.Schema({
+    photo: {
+        type: String,
+    },
+    name: {
+        type: String,
+    },
+    desc: {
+        type: String,
+    },
+    app_link: {
+        type: String,
+    },
+    guide_link: {
+        type: String,
+    },
+    documentation_link: {
+        type: String,
+    },
+    forum_link: {
+        type: String,
+    },
+    discord_link: {
+        type: String,
+    }
+});
+
 const usersSchema = new mongoose.Schema({
     name: {
         type: String,
@@ -44,6 +71,9 @@ const usersSchema = new mongoose.Schema({
     companytype: {
         type: Array,
     },
+
+    campaigns: [campaignSchema]
+    
 
 })
 

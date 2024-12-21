@@ -17,6 +17,7 @@ app.use(express.json())
 app.use("/api/auth", require("./routes/auth"))
 app.use("/api/freelancer", require("./routes/freelancer/profile"))
 app.use("/api/startup", require("./routes/startup/profile"))
+app.use("/api/startup", require("./routes/startup/campaign"))
 
 //Connecting to backend
 app.listen(port, () => {
