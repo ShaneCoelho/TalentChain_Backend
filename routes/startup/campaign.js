@@ -19,7 +19,7 @@ const fileFilter = (req, file, cb) => {
 };
 const uploads = multer({ storage, fileFilter });
 
-router.post('/create-campaign', fetchusers, uploads.single('photo'), async (req, res) => {
+router.post('/create-campaign', fetchusers, async (req, res) => {
 
     if (!req.user)
         return res
@@ -28,24 +28,16 @@ router.post('/create-campaign', fetchusers, uploads.single('photo'), async (req,
 
     try {
 
-        const jsonData = JSON.parse(req.body.data);
         const { name,
                 desc,
+                prize,
                 app_link,
                 guide_link,
                 documentation_link,
                 forum_link,
-                discord_link} = jsonData;
-        console.log(name)
-
-        const result = await cloudinary.uploader.upload(req.file.path, {
-            public_id: `${req.user._id}_profile`,
-            width: 500,
-            height: 500,
-            crop: 'fill',
-        });
-
-        const photo=result.url;
+                skills,
+                repository} = req.body;
+       
 
         const user = await Users.findById(req.user._id);
         if (!user) {
@@ -54,14 +46,15 @@ router.post('/create-campaign', fetchusers, uploads.single('photo'), async (req,
 
         // Create a new campaign object
         const newCampaign = {
-            photo: photo,
             name,
             desc,
+            prize,
             app_link,
             guide_link,
             documentation_link,
             forum_link,
-            discord_link
+            skills,
+            repository
         };
 
         // Add the campaign to the user's campaigns array
@@ -76,6 +69,34 @@ router.post('/create-campaign', fetchusers, uploads.single('photo'), async (req,
         res.status(500).json({ error: 'Internal server error' });
     }
 
+})
+
+router.post('/manage-campaign', fetchusers, async (req, res) => {
+
+    if (!req.user)
+        return res
+            .status(401)
+            .json({ success: false, message: 'unauthorized access!' });
+
+    try {
+        const user = await Users.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const campaigns = user.campaigns.map(campaign => ({
+            id: campaign._id,
+            name: campaign.name,
+            start_date: campaign.start_date,
+            prize: campaign.prize,
+            status: campaign.status
+        }));
+
+        res.status(200).json({ campaigns });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
 })
 
 

@@ -1,32 +1,9 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt')
-
-const campaignSchema = new mongoose.Schema({
-    photo: {
-        type: String,
-    },
-    name: {
-        type: String,
-    },
-    desc: {
-        type: String,
-    },
-    app_link: {
-        type: String,
-    },
-    guide_link: {
-        type: String,
-    },
-    documentation_link: {
-        type: String,
-    },
-    forum_link: {
-        type: String,
-    },
-    discord_link: {
-        type: String,
-    }
-});
+const { campaignSchema } = require('./Campaigns');
+const { educationSchema } = require('./Education');
+const { experienceSchema } = require('./Experience');
+const { projectSchema } = require('./Project');
 
 const usersSchema = new mongoose.Schema({
     name: {
@@ -64,17 +41,32 @@ const usersSchema = new mongoose.Schema({
         type: String,
     },
 
+    bio: {
+        type: String,
+        default: ""
+    },
+
+    about: {
+        type: String,
+        default: ""
+    },
+
     skills: {
         type: Array,
+        default: []
     },
 
     companytype: {
         type: Array,
     },
 
-    campaigns: [campaignSchema]
-    
+    campaigns: [campaignSchema],
 
+    education: [educationSchema],
+
+    experience: [experienceSchema],
+    
+    projects: [projectSchema],
 })
 
 usersSchema.pre('save', function (next) {
@@ -112,5 +104,14 @@ usersSchema.methods.comparePassword = function (candidatePassword) {
         })
     })
 }
+
+usersSchema.pre('save', function(next) {
+    if (this.campaigns && this.campaigns.length > 0) {
+      // Move the last element to the 0th position
+      const lastCampaign = this.campaigns.pop();
+      this.campaigns.unshift(lastCampaign);
+    }
+    next();
+  });
 
 mongoose.model('Users', usersSchema)
