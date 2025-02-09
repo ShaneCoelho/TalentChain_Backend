@@ -21,7 +21,8 @@ router.post('/explore-campaigns', async (req, res) => {
                     campaignStartDate: camp.start_date,
                     campaignBudget: camp.prize,
                     startupId: campaign._id,
-                    campaignId: camp._id
+                    campaignId: camp._id,
+                    skills: camp.skills
                 });
             });
         });
