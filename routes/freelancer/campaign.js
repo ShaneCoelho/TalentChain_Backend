@@ -73,4 +73,25 @@ router.post('/campaign-details', async (req, res) => {
 })
 
 
+//Create a route which receives campaign id, startup id and freelancer id and adds the freelancer to the interested array of the campaign.
+router.post('/show-interest', fetchusers, async (req, res) => {
+    try {
+        const { startupId, campaignId } = req.body;
+        const freelancerId = req.user.id;
+        const startup = await Users.findById(startupId);
+        let campaign;
+        startup.campaigns.forEach(camp => {
+            if (camp._id == campaignId) {
+                camp.interested.push(freelancerId);
+                campaign = camp;
+            }
+        });
+        await startup.save();
+        res.send(campaign);
+    } catch (err) {
+        return res.status(500).send({ error: "Internal server error" });
+    }
+})
+
+
 module.exports = router

@@ -40,8 +40,12 @@ const campaignSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        default: "active"
+        default: "Not Assigned"
     },
+
+    interested: {
+        type: Array,
+    }
 });
 
 module.exports = mongoose.model('Campaigns', campaignSchema);
