@@ -45,6 +45,10 @@ const campaignSchema = new mongoose.Schema({
 
     interested: {
         type: Array,
+    },
+
+    assigned_to: {
+        type: Array,
     }
 });
 

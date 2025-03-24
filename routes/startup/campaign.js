@@ -99,5 +99,84 @@ router.post('/manage-campaign', fetchusers, async (req, res) => {
     }
 })
 
+//create a route that receives user id and campaign id from the frontend and returns the details of the campaign, assigned_to users name and image, interested users name and image. The campaign schema includes interested and assigned_to fields which are arrays of user ids. You need to populate these fields to get the user details. 
+
+router.post('/view_campaign', async (req, res) => {
+    try {
+        const { campaignId } = req.body;
+
+        // Fetch user and campaign details
+        const user = await Users.findOne({ "campaigns._id": campaignId }, { "campaigns.$": 1 });
+        if (!user || !user.campaigns.length) {
+            return res.status(404).json({ message: 'Campaign not found' });
+        }
+        
+        const campaign = user.campaigns[0];
+
+        // Fetch assigned users' details
+        const assignedUsers = await Users.find({ _id: { $in: campaign.assigned_to } }, '_id name image');
+
+        // Fetch interested users' details
+        const interestedUsers = await Users.find({ _id: { $in: campaign.interested } }, '_id name image');
+
+        res.json({
+            campaign,
+            assignedUsers,
+            interestedUsers
+        });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+//assigning a freelancer who is interested to a campaign and updating the status of the campaign to assigned. The route should receive the campaign id and the freelancer id and startup id from the frontend.
+
+router.post('/assign-campaign', fetchusers, async (req, res) => {
+    if (!req.user)
+        return res
+            .status(401)
+            .json({ success: false, message: 'unauthorized access!' });
+
+    try {
+        const { campaignId, freelancerId } = req.body;
+
+        // Fetch the startup and check if the campaign exists
+        const user = await Users.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'Startup not found' });
+        }
+
+        const campaign = user.campaigns.id(campaignId);
+        if (!campaign) {
+            return res.status(404).json({ message: 'Campaign not found' });
+        }
+
+        // Check if the campaign is already assigned
+        if (campaign.status === 'Assigned') {
+            return res.status(400).json({ message: 'Campaign already assigned' });
+        }
+
+        
+
+        // Assign the freelancer to the campaign
+        campaign.assigned_to.push(freelancerId);
+        campaign.status = 'Assigned';
+
+        // Remove the freelancer from the interested list
+        const index = campaign.interested.indexOf(freelancerId);
+        if (index > -1) {
+            campaign.interested.splice(index, 1);
+        }
+
+        // Save the user document
+        await user.save();
+
+        res.json({ message: 'Campaign assigned successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 
 module.exports = router
