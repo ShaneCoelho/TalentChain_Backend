@@ -49,7 +49,14 @@ const campaignSchema = new mongoose.Schema({
 
     assigned_to: {
         type: Array,
-    }
+    },
+    approval: {
+        type: Array,
+        default: []
+    },
+    completed_by: {
+        type: Array,
+    },
 });
 
 module.exports = mongoose.model('Campaigns', campaignSchema);

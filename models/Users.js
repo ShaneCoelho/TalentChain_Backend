@@ -67,6 +67,18 @@ const usersSchema = new mongoose.Schema({
     experience: [experienceSchema],
     
     projects: [projectSchema],
+
+    applied_campaigns: {
+        type: Array,
+    },
+
+    assigned_campaigns: {
+        type: Array,
+    },
+
+    completed_campaigns: {
+        type: Array,
+    },
 })
 
 usersSchema.pre('save', function (next) {

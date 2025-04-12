@@ -101,32 +101,50 @@ router.post('/manage-campaign', fetchusers, async (req, res) => {
 
 //create a route that receives user id and campaign id from the frontend and returns the details of the campaign, assigned_to users name and image, interested users name and image. The campaign schema includes interested and assigned_to fields which are arrays of user ids. You need to populate these fields to get the user details. 
 
-router.post('/view_campaign', async (req, res) => {
-    try {
-        const { campaignId } = req.body;
+router.post('/view_campaign', fetchusers, async (req, res) => {
+    const {userId}=req.user._id;
+    const {campaignId } = req.body;
 
-        // Fetch user and campaign details
-        const user = await Users.findOne({ "campaigns._id": campaignId }, { "campaigns.$": 1 });
-        if (!user || !user.campaigns.length) {
+    try {
+        // Find the user who owns the campaign
+        const user = await Users.findById(req.user._id);
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Find the campaign in the user's campaigns array
+        const campaign = user.campaigns.id(campaignId);
+
+        if (!campaign) {
             return res.status(404).json({ message: 'Campaign not found' });
         }
-        
-        const campaign = user.campaigns[0];
 
-        // Fetch assigned users' details
-        const assignedUsers = await Users.find({ _id: { $in: campaign.assigned_to } }, '_id name image');
+        // Get assigned_to and interested user details
+        const assignedUsers = await Users.find({
+            _id: { $in: campaign.assigned_to }
+        }).select('name image');
 
-        // Fetch interested users' details
-        const interestedUsers = await Users.find({ _id: { $in: campaign.interested } }, '_id name image');
+        const interestedUsers = await Users.find({
+            _id: { $in: campaign.interested }
+        }).select('name image');
 
-        res.json({
+        //Get approval user namees and image
+        const approvalUsers = await Users.find({
+            _id: { $in: campaign.approval }
+        }).select('name image');
+
+        // Respond with campaign and populated data
+        res.status(200).json({
             campaign,
             assignedUsers,
-            interestedUsers
+            interestedUsers,
+            approvalUsers
         });
+
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ message: 'Server error' });
+        console.error('Error fetching campaign details:', error);
+        res.status(500).json({ message: 'Internal server error' });
     }
 });
 
@@ -169,6 +187,20 @@ router.post('/assign-campaign', fetchusers, async (req, res) => {
             campaign.interested.splice(index, 1);
         }
 
+        //Update the freelancer's applied_campaigns array to include the assigned campaign startup id and campaign id also delete the campaign id and startup id from the applied_campaigns array of the freelancer.
+        const freelancer = await Users.findById(freelancerId);
+        if (!freelancer) {
+            return res.status(404).json({ message: 'Freelancer not found' });
+        }
+        const appliedCampaignIndex = freelancer.applied_campaigns.findIndex(camp => camp.campaignId === campaignId && camp.startupId === req.user._id);
+        if (appliedCampaignIndex > -1) {
+            freelancer.applied_campaigns.splice(appliedCampaignIndex, 1);
+        }
+        freelancer.assigned_campaigns.push({ campaignId, startupId: req.user._id });
+        // Save the freelancer document
+        await freelancer.save();
+        
+
         // Save the user document
         await user.save();
 
@@ -178,5 +210,120 @@ router.post('/assign-campaign', fetchusers, async (req, res) => {
         res.status(500).json({ message: 'Server error' });
     }
 });
+
+//create a route that receives the startup id, campaign id and freelancer id from the frontend and removes the freelancer id from the assigned_to array and approval array of the campaign and also removes the campaign id and startup id from the assigned_campaigns array of the freelancer and adds the campaign id and startup id to completed_campaigns array of the freelancer. The route should also update the status of the campaign to completed.
+
+router.post('/complete-campaign', fetchusers, async (req, res) => {
+    if (!req.user)
+        return res
+            .status(401)
+            .json({ success: false, message: 'unauthorized access!' });
+
+    try {
+        const { campaignId, freelancerId } = req.body;
+
+        // Fetch the startup and check if the campaign exists
+        const user = await Users.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'Startup not found' });
+        }
+
+        const campaign = user.campaigns.id(campaignId);
+        if (!campaign) {
+            return res.status(404).json({ message: 'Campaign not found' });
+        }
+
+        // Check if the campaign is already completed
+        if (campaign.status === 'Completed') {
+            return res.status(400).json({ message: 'Campaign already completed' });
+        }
+
+        
+
+        // Remove the freelancer from the assigned list and approval list
+        const index = campaign.assigned_to.indexOf(freelancerId);
+        if (index > -1) {
+            campaign.assigned_to.splice(index, 1);
+        }
+        
+        const approvalIndex = campaign.approval.indexOf(freelancerId);
+        if (approvalIndex > -1) {
+            campaign.approval.splice(approvalIndex, 1);
+        }
+
+        
+
+        // Update the status of the campaign to completed
+        campaign.status = 'Completed';
+
+        
+
+        //Update the freelancer's assigned_campaigns array to remove the assigned campaign startup id and campaign id and add the campaign id and startup id to completed_campaigns array of the freelancer.
+        const freelancer = await Users.findById(freelancerId);
+        if (!freelancer) {
+            return res.status(404).json({ message: 'Freelancer not found' });
+        }
+        const assignedCampaignIndex = freelancer.assigned_campaigns.findIndex(camp => camp.campaignId === campaignId && camp.startupId === req.user._id);
+        if (assignedCampaignIndex > -1) {
+            freelancer.assigned_campaigns.splice(assignedCampaignIndex, 1);
+        }
+        freelancer.completed_campaigns.push({ campaignId, startupId: req.user._id });
+        // Save the freelancer document
+        await freelancer.save();
+
+        // Save the user document
+        await user.save();
+
+        res.json({ message: 'Campaign completed successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+);
+
+//create a route to update the campaign details. The route should receive the campaign id and startup id and the updated details from the frontend and update the campaign details in the database.
+
+router.post('/update-campaign', fetchusers, async (req, res) => {
+    if (!req.user)
+        return res
+            .status(401)
+            .json({ success: false, message: 'unauthorized access!' });
+
+    try {
+        const { campaignId, name, desc, prize, app_link, guide_link, documentation_link, forum_link, skills, repository } = req.body;
+
+        // Fetch the startup and check if the campaign exists
+        const user = await Users.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'Startup not found' });
+        }
+
+        const campaign = user.campaigns.id(campaignId);
+        if (!campaign) {
+            return res.status(404).json({ message: 'Campaign not found' });
+        }
+
+        // Update the campaign details
+        campaign.name = name;
+        campaign.desc = desc;
+        campaign.prize = prize;
+        campaign.app_link = app_link;
+        campaign.guide_link = guide_link;
+        campaign.documentation_link = documentation_link;
+        campaign.forum_link = forum_link;
+        campaign.skills = skills;
+        campaign.repository = repository;
+
+        // Save the user document
+        await user.save();
+
+        res.json({ message: 'Campaign updated successfully' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+);
 
 module.exports = router

@@ -86,12 +86,122 @@ router.post('/show-interest', fetchusers, async (req, res) => {
                 campaign = camp;
             }
         });
+
+        // It should also save the campaign id and startupId in the applied_campaigns array of the freelancer.
+        const freelancer = await Users.findById(freelancerId);
+        let appliedCampaign = {
+            campaignId: campaignId,
+            startupId: startupId
+        };
+        freelancer.applied_campaigns.push(appliedCampaign);
+        freelancer.save();
         await startup.save();
         res.send(campaign);
     } catch (err) {
         return res.status(500).send({ error: "Internal server error" });
     }
 })
+
+//create a route which receives the user id and returns all the details like name, start date, prize, status, startup id and campaign id  of  applied campaigns of the user.
+router.post('/applied-campaigns', fetchusers, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const user = await Users.findById(userId);
+        let appliedCampaigns = [];
+
+        user.applied_campaigns.forEach(camp => {
+            let campaign = user.campaigns.find(c => c._id == camp.campaignId);
+            if (campaign) {
+                appliedCampaigns.push({
+                    startupId: camp.startupId,
+                    campaignId: campaign._id,
+                    name: campaign.name,
+                    start_date: campaign.start_date,
+                    prize: campaign.prize,
+                    status: campaign.status
+                });
+            }
+        });
+        res.send(appliedCampaigns);
+    } catch (err) {
+        return res.status(500).send({ error: "Internal server error" });
+    }
+})
+
+//create a route which receives the startup id and campaign id and returns the entire details of the campaign excluding the interested and assigned users.
+router.post('/campaign-details', async (req, res) => {
+    try {
+        const { startupId, campaignId } = req.body;
+        const startup = await Users.findById(startupId);
+        let campaign;
+        startup.campaigns.forEach(camp => {
+            if (camp._id == campaignId) {
+                campaign = camp;
+            }
+        });
+        res.send(campaign);
+    } catch (err) {
+        return res.status(500).send({ error: "Internal server error" });
+    }
+})
+
+//create a route which receives the user id and returns all the details like name, start date, prize, status, startup id and campaign id  of  assigned campaigns of the user.
+router.post('/assigned-campaigns', fetchusers, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const user = await Users.findById(userId);
+        let assignedCampaigns = [];
+
+        user.assigned_campaigns.forEach(camp => {
+            let campaign = user.campaigns.find(c => c._id == camp.campaignId);
+            if (campaign) {
+                assignedCampaigns.push({
+                    startupId: camp.startupId,
+                    campaignId: campaign._id,
+                    name: campaign.name,
+                    start_date: campaign.start_date,
+                    prize: campaign.prize,
+                    status: campaign.status
+                });
+            }
+        });
+        res.send(assignedCampaigns);
+    } catch (err) {
+        return res.status(500).send({ error: "Internal server error" });
+    }
+})
+
+//create a route which receives the startup id, campaign id and freelancer id and adds the freelancer id to the approval array of the campaign
+
+router.post('/send-for-approval', fetchusers, async (req, res) => {
+    try {
+      const { startupId, campaignId } = req.body;
+      const startup = await Users.findById(startupId);
+      if (!startup) {
+        return res.status(404).send({ error: "Startup not found" });
+      }
+  
+      let campaign;
+      startup.campaigns.forEach(camp => {
+        if (camp._id.toString() === campaignId) {
+        //   if (!camp.approval) camp.approval = [];
+          camp.approval.push(req.user.id);
+          campaign = camp;
+        }
+      });
+  
+      if (!campaign) {
+        return res.status(404).send({ error: "Campaign not found" });
+      }
+  
+      await startup.save();
+      res.send(campaign);
+    } catch (err) {
+      console.error('Error in /send-for-approval:', err);
+      return res.status(500).send({ error: "Internal server error" });
+    }
+  });
+
 
 
 module.exports = router
