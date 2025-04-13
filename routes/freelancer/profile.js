@@ -10,12 +10,12 @@ const cloudinary = require('../../helper/imageUpload')
 const storage = multer.diskStorage({});
 
 const fileFilter = (req, file, cb) => {
-  console.log(file)
-  if (file.mimetype.startsWith('image')) {
-    cb(null, true);
-  } else {
-    cb('invalid image file!', false);
-  }
+    console.log(file)
+    if (file.mimetype.startsWith('image')) {
+        cb(null, true);
+    } else {
+        cb('invalid image file!', false);
+    }
 };
 const uploads = multer({ storage, fileFilter });
 
@@ -25,7 +25,7 @@ router.post('/freelancerregister', fetchusers, async (req, res) => {
     const { name, phone, skills, existingUser, role } = req.body;
 
     try {
-        
+
         const updatedUser = await Users.findByIdAndUpdate(
             userId,
             { name, phone, skills, existingUser, role },
@@ -42,7 +42,7 @@ router.post('/freelancerregister', fetchusers, async (req, res) => {
             image: req.user.image || null, // Send null if image is not provided
         });
     } catch (error) {
-        
+
         res.status(500).json({ message: "An error occurred", error });
     }
 });
@@ -51,25 +51,21 @@ router.post('/freelancerregister', fetchusers, async (req, res) => {
 router.post('/basic-info', fetchusers, uploads.single('photo'), async (req, res) => {
     const userId = req.user.id;
 
-     try {
-    
-            const jsonData = JSON.parse(req.body.data);
-            const { name,
-                    bio} = jsonData;
-            console.log(name)
-    
-            const result = await cloudinary.uploader.upload(req.file.path, {
-                public_id: `${req.user._id}_profile`,
-                width: 500,
-                height: 500,
-                crop: 'fill',
-            });
-    
-            const image=result.url;
+    // The following route will receive name, email, phone and image. The image will be uploaded to cloudinary and the url will be updated in the database along with the name, email and phone.
+    const { name, email, phone } = req.body;
+    const result = await cloudinary.uploader.upload(req.file.path, {
+        public_id: `${req.user._id}_profile`,
+        width: 500,
+        height: 500,
+        crop: 'fill',
+    });
 
+    const image = result.url;
+
+    try {
         const updatedUser = await Users.findByIdAndUpdate(
             userId,
-            { image, name, bio },
+            { name, email, phone, image: image },
             { new: true, runValidators: true } // Option to return the updated document
         );
 
@@ -78,31 +74,14 @@ router.post('/basic-info', fetchusers, uploads.single('photo'), async (req, res)
         }
 
         res.status(200).send({
-            image: image,
             name: name,
-            bio: bio,
+            email: email,
+            phone: phone,
+            image: image,
         });
-    } catch (error) {
-        res.status(500).json({ message: "An error occurred", error });
     }
-});
+    catch (error) {
 
-router.post('/get-basic-info', fetchusers, async (req, res) => {
-    const userId = req.user.id;
-
-    try {
-        const user = await Users.findById(userId);
-
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        res.status(200).send({
-            image: user.image,
-            name: user.name,
-            bio: user.bio,
-        });
-    } catch (error) {
         res.status(500).json({ message: "An error occurred", error });
     }
 });
@@ -114,7 +93,7 @@ router.post('/professional-summary', fetchusers, async (req, res) => {
     const { about, skills } = req.body;
 
     try {
-        
+
         const updatedUser = await Users.findByIdAndUpdate(
             userId,
             { about, skills },
@@ -130,42 +109,23 @@ router.post('/professional-summary', fetchusers, async (req, res) => {
             skills: skills,
         });
     } catch (error) {
-        
+
         res.status(500).json({ message: "An error occurred", error });
     }
 });
 
-router.post('/get-professional-summary', fetchusers, async (req, res) => {
+//provide me an route that receives the freelancer id and array of education objects and updates the education array of the user with the new array of education objects
+router.post('/update-education', fetchusers, async (req, res) => {
     const userId = req.user.id;
+    const { education } = req.body;
 
     try {
-        const user = await Users.findById(userId);
-
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        res.status(200).send({
-            about: user.about,
-            skills: user.skills,
-        });
-    } catch (error) {
-        res.status(500).json({ message: "An error occurred", error });
-    }
-});
-
-router.post('/add-education', fetchusers, async (req, res) => {
-    
-    const userId = req.user.id;
-    const { inst_name, degree, start_year, end_year } = req.body;
-
-    try {
-        
         const updatedUser = await Users.findByIdAndUpdate(
             userId,
-            { $push: { education: { inst_name, degree, start_year, end_year } } },
-            { new: true, runValidators: true } // Option to return the updated document
+            { education },
+            { new: true, runValidators: true }
         );
+
 
         if (!updatedUser) {
             return res.status(404).json({ message: "User not found" });
@@ -175,76 +135,20 @@ router.post('/add-education', fetchusers, async (req, res) => {
             education: updatedUser.education,
         });
     } catch (error) {
-        
         res.status(500).json({ message: "An error occurred", error });
     }
-
 });
 
-router.post('/update-education', fetchusers, async (req, res) => {
-    
-    try {
-        const userId = req.user.id; // Main document ID
-        const { inst_name, degree, start_year, end_year, _id } = req.body; // Education fields and education document ID
 
-        // Find the user by ID
-        const user = await Users.findById(userId);
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        // Find the education entry by its ID
-        const education = user.education.id(_id);
-        if (!education) {
-            return res.status(404).json({ error: 'Education entry not found' });
-        }
-
-        // Update the education entry fields
-        education.inst_name = inst_name || education.inst_name;
-        education.degree = degree || education.degree;
-        education.start_year = start_year || education.start_year;
-        education.end_year = end_year || education.end_year;
-
-        // Save the updated user document
-        await user.save();
-
-        res.status(200).json({ message: 'Education entry updated successfully', education });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-router.post('/get-educations', fetchusers, async (req, res) => {
+router.post('/update-experience', fetchusers, async (req, res) => {
     const userId = req.user.id;
+    const { experience } = req.body;
 
     try {
-        const user = await Users.findById(userId);
-
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        res.status(200).send({
-            education: user.education,
-        });
-    } catch (error) {
-        res.status(500).json({ message: "An error occurred", error });
-    }
-
-});
-
-router.post('/add-experience', fetchusers, async (req, res) => {
-    
-    const userId = req.user.id;
-    const { company_name, position, start_date, end_date } = req.body;
-
-    try {
-        
         const updatedUser = await Users.findByIdAndUpdate(
             userId,
-            { $push: { experience: { company_name, position, start_date, end_date } } },
-            { new: true, runValidators: true } // Option to return the updated document
+            { experience },
+            { new: true, runValidators: true }
         );
 
         if (!updatedUser) {
@@ -255,77 +159,19 @@ router.post('/add-experience', fetchusers, async (req, res) => {
             experience: updatedUser.experience,
         });
     } catch (error) {
-        
         res.status(500).json({ message: "An error occurred", error });
     }
-
 });
 
-
-router.post('/update-experience', fetchusers, async (req, res) => {
-    
-    try {
-        const userId = req.user.id; // Main document ID
-        const { company_name, position, start_date, end_date, _id } = req.body; // Experience fields and experience document ID
-
-        // Find the user by ID
-        const user = await Users.findById(userId);
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        // Find the experience entry by its ID
-        const experience = user.experience.id(_id);
-        if (!experience) {
-            return res.status(404).json({ error: 'Experience entry not found' });
-        }
-
-        // Update the experience entry fields
-        experience.company_name = company_name || experience.company_name;
-        experience.position = position || experience.position;
-        experience.start_date = start_date || experience.start_date;
-        experience.end_date = end_date || experience.end_date;
-
-        // Save the updated user document
-        await user.save();
-
-        res.status(200).json({ message: 'Experience entry updated successfully', experience });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
-
-router.post('/get-experiences', fetchusers, async (req, res) => {
+router.post('/update-projects', fetchusers, async (req, res) => {
     const userId = req.user.id;
+    const { projects } = req.body;
 
     try {
-        const user = await Users.findById(userId);
-
-        if (!user) {
-            return res.status(404).json({ message: "User not found" });
-        }
-
-        res.status(200).send({
-            experience: user.experience,
-        });
-    } catch (error) {
-        res.status(500).json({ message: "An error occurred", error });
-    }
-
-});
-
-router.post('/add-project', fetchusers, async (req, res) => {
-    
-    const userId = req.user.id;
-    const { proj_name, desc, link } = req.body;
-
-    try {
-        
         const updatedUser = await Users.findByIdAndUpdate(
             userId,
-            { $push: { projects: { proj_name, desc, link } } },
-            { new: true, runValidators: true } // Option to return the updated document
+            { projects },
+            { new: true, runValidators: true }
         );
 
         if (!updatedUser) {
@@ -336,13 +182,38 @@ router.post('/add-project', fetchusers, async (req, res) => {
             projects: updatedUser.projects,
         });
     } catch (error) {
-        
         res.status(500).json({ message: "An error occurred", error });
     }
-
 });
 
-router.post('/get-projects', fetchusers, async (req, res) => {
+//create an route that receives freelancer id, about, skills and updates the about and skills of the user
+router.post('/update-about-skills', fetchusers, async (req, res) => {
+    const userId = req.user.id;
+    const { about, skills } = req.body;
+
+    try {
+        const updatedUser = await Users.findByIdAndUpdate(
+            userId,
+            { about, skills },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedUser) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).send({
+            about: updatedUser.about,
+            skills: updatedUser.skills,
+        });
+    } catch (error) {
+        res.status(500).json({ message: "An error occurred", error });
+    }
+});
+
+
+//create a route which receives the user id and returns the user name, image, email, phone, about, skills, education, experience and projects of the user
+router.post('/get-profile', fetchusers, async (req, res) => {
     const userId = req.user.id;
 
     try {
@@ -353,45 +224,20 @@ router.post('/get-projects', fetchusers, async (req, res) => {
         }
 
         res.status(200).send({
-            projects: user.projects,
+            name: user.name,
+            image: user.image,
+            email: user.email,
+            phone: user.phone,
+            about: user.about,
+            skills: user.skills,
+            education: user.education,
+            experience: user.experience,
+            projects: user.projects
         });
     } catch (error) {
         res.status(500).json({ message: "An error occurred", error });
     }
 
-});
-
-router.post('/update-project', fetchusers, async (req, res) => {
-    
-    try {
-        const userId = req.user.id; // Main document ID
-        const { proj_name, desc, link, _id } = req.body; // Project fields and project document ID
-
-        // Find the user by ID
-        const user = await Users.findById(userId);
-        if (!user) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        // Find the project entry by its ID
-        const project = user.projects.id(_id);
-        if (!project) {
-            return res.status(404).json({ error: 'Project entry not found' });
-        }
-
-        // Update the project entry fields
-        project.proj_name = proj_name || project.proj_name;
-        project.desc = desc || project.desc;
-        project.link = link || project.link;
-
-        // Save the updated user document
-        await user.save();
-
-        res.status(200).json({ message: 'Project entry updated successfully', project });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
 });
 
 
