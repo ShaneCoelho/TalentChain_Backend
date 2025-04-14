@@ -56,21 +56,54 @@ router.post('/explore-campaigns', async (req, res) => {
 
 
 //Create a route which receives the campaign id and startup id and returns the campaign details to the frontend.
+// router.post('/campaign-details', async (req, res) => {
+//     try {
+//         const { startupId, campaignId } = req.body;
+//         const startup = await Users.findById(startupId);
+//         let campaign;
+//         startup.campaigns.forEach(camp => {
+//             if (camp._id == campaignId) {
+//                 campaign = camp;
+//             }
+//         });
+//         res.send(campaign);
+//     } catch (err) {
+//         return res.status(500).send({ error: "Internal server error" });
+//     }
+// })
+
+//Create a express route which receives the campaign id and startup id and returns the campaign details along with the startup name and image to the frontend.
+
+
 router.post('/campaign-details', async (req, res) => {
     try {
         const { startupId, campaignId } = req.body;
-        const startup = await Users.findById(startupId);
-        let campaign;
-        startup.campaigns.forEach(camp => {
-            if (camp._id == campaignId) {
-                campaign = camp;
-            }
+
+        // Find the startup by ID
+        const startup = await Users.findById(startupId).select("name image campaigns");
+        if (!startup) {
+            return res.status(404).send({ error: "Startup not found" });
+        }
+
+        // Find the campaign within the startup's campaigns
+        const campaign = startup.campaigns.find(camp => camp._id.toString() === campaignId);
+        if (!campaign) {
+            return res.status(404).send({ error: "Campaign not found" });
+        }
+
+        // Return campaign details along with startup name and image
+        res.send({
+            campaignDetails: campaign,
+            startupName: startup.name,
+            startupImage: startup.image
         });
-        res.send(campaign);
     } catch (err) {
+        console.error('Error in /campaign-details:', err);
         return res.status(500).send({ error: "Internal server error" });
     }
-})
+});
+
+
 
 
 //Create a route which receives campaign id, startup id and freelancer id and adds the freelancer to the interested array of the campaign.
