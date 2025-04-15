@@ -136,33 +136,70 @@ router.post('/show-interest', fetchusers, async (req, res) => {
 })
 
 //create a route which receives the user id and returns all the details like name, start date, prize, status, startup id and campaign id  of  applied campaigns of the user.
+// router.post('/applied-campaigns', fetchusers, async (req, res) => {
+//     try {
+//         const userId = req.user.id;
+//         const user = await Users.findById(userId);
+//         let appliedCampaigns = [];
+
+//         user.applied_campaigns.forEach(camp => {
+//             let campaign = user.campaigns.find(c => c._id == camp.campaignId);
+//             if (campaign) {
+//                 appliedCampaigns.push({
+//                     startupId: camp.startupId,
+//                     campaignId: campaign._id,
+//                     name: campaign.name,
+//                     start_date: campaign.start_date,
+//                     prize: campaign.prize,
+//                     status: campaign.status
+//                 });
+//             }
+//         });
+//         res.send(appliedCampaigns);
+//     } catch (err) {
+//         return res.status(500).send({ error: "Internal server error" });
+//     }
+// })
+
 router.post('/applied-campaigns', fetchusers, async (req, res) => {
     try {
-        const userId = req.user.id;
-        const user = await Users.findById(userId);
-        let appliedCampaigns = [];
+        const freelancerId = req.user.id;
 
-        user.applied_campaigns.forEach(camp => {
-            let campaign = user.campaigns.find(c => c._id == camp.campaignId);
-            if (campaign) {
-                appliedCampaigns.push({
-                    startupId: camp.startupId,
-                    campaignId: campaign._id,
-                    name: campaign.name,
-                    start_date: campaign.start_date,
-                    prize: campaign.prize,
-                    status: campaign.status
-                });
+        // Find the freelancer by ID
+        const freelancer = await Users.findById(freelancerId).select("applied_campaigns");
+        if (!freelancer) {
+            return res.status(404).send({ error: "Freelancer not found" });
+        }
+
+        let appliedCampaignsDetails = [];
+
+        // Loop through applied campaigns and fetch details
+        for (const applied of freelancer.applied_campaigns) {
+            const startup = await Users.findById(applied.startupId).select("campaigns");
+            if (startup) {
+                const campaign = startup.campaigns.find(camp => camp._id.toString() === applied.campaignId);
+                if (campaign) {
+                    appliedCampaignsDetails.push({
+                        startupId: applied.startupId,
+                        campaignId: applied.campaignId,
+                        name: campaign.name,
+                        start_date: campaign.start_date,
+                        prize: campaign.prize,
+                        status: campaign.status
+                    });
+                }
             }
-        });
-        res.send(appliedCampaigns);
+        }
+
+        res.send(appliedCampaignsDetails);
     } catch (err) {
+        console.error('Error in /freelancer-applied-campaigns:', err);
         return res.status(500).send({ error: "Internal server error" });
     }
-})
+});
 
 //create a route which receives the startup id and campaign id and returns the entire details of the campaign excluding the interested and assigned users.
-router.post('/campaign-details', async (req, res) => {
+router.post('/assigned-campaign-details', async (req, res) => {
     try {
         const { startupId, campaignId } = req.body;
         const startup = await Users.findById(startupId);
@@ -179,30 +216,67 @@ router.post('/campaign-details', async (req, res) => {
 })
 
 //create a route which receives the user id and returns all the details like name, start date, prize, status, startup id and campaign id  of  assigned campaigns of the user.
+// router.post('/assigned-campaigns', fetchusers, async (req, res) => {
+//     try {
+//         const userId = req.user.id;
+//         const user = await Users.findById(userId);
+//         let assignedCampaigns = [];
+
+//         user.assigned_campaigns.forEach(camp => {
+//             let campaign = user.campaigns.find(c => c._id == camp.campaignId);
+//             if (campaign) {
+//                 assignedCampaigns.push({
+//                     startupId: camp.startupId,
+//                     campaignId: campaign._id,
+//                     name: campaign.name,
+//                     start_date: campaign.start_date,
+//                     prize: campaign.prize,
+//                     status: campaign.status
+//                 });
+//             }
+//         });
+//         res.send(assignedCampaigns);
+//     } catch (err) {
+//         return res.status(500).send({ error: "Internal server error" });
+//     }
+// })
+
 router.post('/assigned-campaigns', fetchusers, async (req, res) => {
     try {
-        const userId = req.user.id;
-        const user = await Users.findById(userId);
-        let assignedCampaigns = [];
+        const freelancerId = req.user.id;
 
-        user.assigned_campaigns.forEach(camp => {
-            let campaign = user.campaigns.find(c => c._id == camp.campaignId);
-            if (campaign) {
-                assignedCampaigns.push({
-                    startupId: camp.startupId,
-                    campaignId: campaign._id,
-                    name: campaign.name,
-                    start_date: campaign.start_date,
-                    prize: campaign.prize,
-                    status: campaign.status
-                });
+        // Find the freelancer by ID
+        const freelancer = await Users.findById(freelancerId).select("assigned_campaigns");
+        if (!freelancer) {
+            return res.status(404).send({ error: "Freelancer not found" });
+        }
+
+        let assignedCampaignsDetails = [];
+
+        // Loop through assigned campaigns and fetch details
+        for (const assigned of freelancer.assigned_campaigns) {
+            const startup = await Users.findById(assigned.startupId).select("campaigns");
+            if (startup) {
+                const campaign = startup.campaigns.find(camp => camp._id.toString() === assigned.campaignId);
+                if (campaign) {
+                    assignedCampaignsDetails.push({
+                        startupId: assigned.startupId,
+                        campaignId: assigned.campaignId,
+                        name: campaign.name,
+                        start_date: campaign.start_date,
+                        prize: campaign.prize,
+                        status: campaign.status
+                    });
+                }
             }
-        });
-        res.send(assignedCampaigns);
+        }
+
+        res.send(assignedCampaignsDetails);
     } catch (err) {
+        console.error('Error in /freelancer-assigned-campaigns:', err);
         return res.status(500).send({ error: "Internal server error" });
     }
-})
+});
 
 //create a route which receives the startup id, campaign id and freelancer id and adds the freelancer id to the approval array of the campaign
 
