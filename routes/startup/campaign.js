@@ -268,6 +268,9 @@ router.post('/complete-campaign', fetchusers, async (req, res) => {
             freelancer.assigned_campaigns.splice(assignedCampaignIndex, 1);
         }
         freelancer.completed_campaigns.push({ campaignId, startupId: req.user._id });
+
+        // push the freelancer id to the completed_by array of the campaign
+        campaign.completed_by.push(freelancerId);
         // Save the freelancer document
         await freelancer.save();
 
@@ -325,5 +328,55 @@ router.post('/update-campaign', fetchusers, async (req, res) => {
     }
 }
 );
+
+
+//create a route that receives the startup id from the frontend and returns the list of freelancers names and images those who have completed the campaigns of the startup along with the campaign name, start date, prize, status, campaign id and freelancer id.
+
+router.post('/completed-campaigns', fetchusers, async (req, res) => {
+    if (!req.user)
+        return res
+            .status(401)
+            .json({ success: false, message: 'Unauthorized access!' });
+
+    try {
+        const startupId= req.user.id;
+
+        // Find the startup by ID
+        const startup = await Users.findById(startupId).select("campaigns");
+        if (!startup) {
+            return res.status(404).json({ error: 'Startup not found' });
+        }
+
+        let completedCampaignsDetails = [];
+
+        // Loop through campaigns and find completed ones
+        for (const campaign of startup.campaigns) {
+            if (campaign.status === 'Completed') {
+                // Fetch freelancer details for each completed campaign
+                const freelancers = await Users.find({
+                    _id: { $in: campaign.completed_by }
+                }).select("name image");
+
+                completedCampaignsDetails.push({
+                    campaignId: campaign._id,
+                    name: campaign.name,
+                    start_date: campaign.start_date,
+                    prize: campaign.prize,
+                    status: campaign.status,
+                    freelancers: freelancers.map(freelancer => ({
+                        freelancerId: freelancer._id,
+                        name: freelancer.name,
+                        image: freelancer.image
+                    }))
+                });
+            }
+        }
+
+        res.status(200).json({ completedCampaigns: completedCampaignsDetails });
+    } catch (error) {
+        console.error('Error in /startup-completed-campaigns:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 module.exports = router
