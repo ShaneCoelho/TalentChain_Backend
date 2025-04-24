@@ -83,4 +83,25 @@ router.post('/user_is', fetchusers, async (req, res) => {
     }
 });
 
+//create a route that receives the user id and wallet address and updates the wallet address of the user in the database
+router.post('/updatewallet', fetchusers, async (req, res) => {
+    const userId = req.user.id;
+    const { walletaddress } = req.body;
+
+    try {
+        // Find the user by ID and update the wallet address
+        const user = await Users.findByIdAndUpdate(userId, { walletaddress }, { new: true });
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.status(200).json({ message: 'Wallet address updated successfully', user });
+    } catch (error) {
+        console.error('Error updating wallet address:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+}
+);
+
 module.exports = router

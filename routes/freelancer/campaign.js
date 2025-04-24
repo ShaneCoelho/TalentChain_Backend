@@ -309,6 +309,23 @@ router.post('/send-for-approval', fetchusers, async (req, res) => {
     }
   });
 
+  //create a route which receives freelancer id and returns rewardsreceived array.
+
+router.post('/rewards-received', fetchusers, async (req, res) => {
+    try {
+        const userId = req.user.id;
+        const user = await Users.findById(userId).select("rewardsreceived");
+        if (!user) {
+            return res.status(404).send({ error: "User not found" });
+        }
+        res.send(user.rewardsreceived);
+    } catch (err) {
+        console.error('Error in /rewards-received:', err);
+        return res.status(500).send({ error: "Internal server error" });
+    }
+}
+);
+
 
 
 module.exports = router

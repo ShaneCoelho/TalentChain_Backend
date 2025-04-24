@@ -339,7 +339,7 @@ router.post('/completed-campaigns', fetchusers, async (req, res) => {
             .json({ success: false, message: 'Unauthorized access!' });
 
     try {
-        const startupId= req.user.id;
+        const startupId = req.user.id;
 
         // Find the startup by ID
         const startup = await Users.findById(startupId).select("campaigns");
@@ -355,7 +355,7 @@ router.post('/completed-campaigns', fetchusers, async (req, res) => {
                 // Fetch freelancer details for each completed campaign
                 const freelancers = await Users.find({
                     _id: { $in: campaign.completed_by }
-                }).select("name image");
+                }).select("name image walletaddress");
 
                 completedCampaignsDetails.push({
                     campaignId: campaign._id,
@@ -366,7 +366,8 @@ router.post('/completed-campaigns', fetchusers, async (req, res) => {
                     freelancers: freelancers.map(freelancer => ({
                         freelancerId: freelancer._id,
                         name: freelancer.name,
-                        image: freelancer.image
+                        image: freelancer.image,
+                        walletaddress: freelancer.walletaddress
                     }))
                 });
             }
@@ -376,6 +377,64 @@ router.post('/completed-campaigns', fetchusers, async (req, res) => {
     } catch (error) {
         console.error('Error in /startup-completed-campaigns:', error);
         res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
+//create a route that receives the startup id, freelancer id and campaign id from the frontend. add the startup name, campaign name, campaign prize and reward received date(dd-mm-yyyy) to the receiverewards field using the freelancer id.
+
+router.post('/rewards', fetchusers, async (req, res) => {
+    if (!req.user)
+        return res
+            .status(401)
+            .json({ success: false, message: 'unauthorized access!' });
+
+    try {
+        const { freelancerId, campaignId } = req.body;
+
+        // Fetch the startup and check if the campaign exists
+        const user = await Users.findById(req.user._id);
+        if (!user) {
+            return res.status(404).json({ message: 'Startup not found' });
+        }
+
+        const campaign = user.campaigns.id(campaignId);
+        if (!campaign) {
+            return res.status(404).json({ message: 'Campaign not found' });
+        }
+
+        // Add the reward to the freelancer's rewardsreceived array
+        const freelancer = await Users.findById(freelancerId);
+        if (!freelancer) {
+            return res.status(404).json({ message: 'Freelancer not found' });
+        }
+
+        // Format the date as dd/mm/yyyy
+        const formattedDate = new Date().toLocaleDateString('en-GB'); // 'en-GB' ensures dd/mm/yyyy format
+
+        const reward = {
+            startupName: user.name,
+            campaignName: campaign.name,
+            prize: campaign.prize,
+            date: formattedDate,
+            status: 'Reward Received'
+        };
+
+        freelancer.rewardsreceived.push(reward);
+
+        // Update the campaign status to 'Reward Sent'
+        campaign.status = 'Reward Sent';
+
+        // Save the freelancer document
+        await freelancer.save();
+
+        // Save the user document
+        await user.save();
+
+        res.json({ message: 'Reward added successfully and campaign status updated to Reward Sent' });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Server error' });
     }
 });
 

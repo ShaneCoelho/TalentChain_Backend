@@ -60,6 +60,14 @@ const usersSchema = new mongoose.Schema({
         type: Array,
     },
 
+    rewardsreceived: {
+        type: Array,
+    },
+
+    walletaddress: {
+        type: String,
+    },
+
     campaigns: [campaignSchema],
 
     education: [educationSchema],
