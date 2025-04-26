@@ -217,7 +217,7 @@ router.post('/complete-campaign', fetchusers, async (req, res) => {
     if (!req.user)
         return res
             .status(401)
-            .json({ success: false, message: 'unauthorized access!' });
+            .json({ success: false, message: 'Unauthorized access!' });
 
     try {
         const { campaignId, freelancerId } = req.body;
@@ -238,39 +238,37 @@ router.post('/complete-campaign', fetchusers, async (req, res) => {
             return res.status(400).json({ message: 'Campaign already completed' });
         }
 
-        
-
         // Remove the freelancer from the assigned list and approval list
         const index = campaign.assigned_to.indexOf(freelancerId);
         if (index > -1) {
             campaign.assigned_to.splice(index, 1);
         }
-        
+
         const approvalIndex = campaign.approval.indexOf(freelancerId);
         if (approvalIndex > -1) {
             campaign.approval.splice(approvalIndex, 1);
         }
 
-        
-
         // Update the status of the campaign to completed
         campaign.status = 'Completed';
 
-        
-
-        //Update the freelancer's assigned_campaigns array to remove the assigned campaign startup id and campaign id and add the campaign id and startup id to completed_campaigns array of the freelancer.
+        // Update the freelancer's assigned_campaigns array
         const freelancer = await Users.findById(freelancerId);
         if (!freelancer) {
             return res.status(404).json({ message: 'Freelancer not found' });
         }
-        const assignedCampaignIndex = freelancer.assigned_campaigns.findIndex(camp => camp.campaignId === campaignId && camp.startupId === req.user._id);
-        if (assignedCampaignIndex > -1) {
-            freelancer.assigned_campaigns.splice(assignedCampaignIndex, 1);
-        }
+
+        // Ensure proper matching of campaignId and startupId
+        freelancer.assigned_campaigns = freelancer.assigned_campaigns.filter(
+            camp => !(camp.campaignId.toString() === campaignId && camp.startupId.toString() === req.user._id.toString())
+        );
+
+        // Add the campaign to the completed_campaigns array
         freelancer.completed_campaigns.push({ campaignId, startupId: req.user._id });
 
-        // push the freelancer id to the completed_by array of the campaign
+        // Push the freelancer ID to the completed_by array of the campaign
         campaign.completed_by.push(freelancerId);
+
         // Save the freelancer document
         await freelancer.save();
 
@@ -282,8 +280,7 @@ router.post('/complete-campaign', fetchusers, async (req, res) => {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
     }
-}
-);
+});
 
 //create a route to update the campaign details. The route should receive the campaign id and startup id and the updated details from the frontend and update the campaign details in the database.
 
@@ -413,6 +410,7 @@ router.post('/rewards', fetchusers, async (req, res) => {
         const formattedDate = new Date().toLocaleDateString('en-GB'); // 'en-GB' ensures dd/mm/yyyy format
 
         const reward = {
+            startupImage: user.image,
             startupName: user.name,
             campaignName: campaign.name,
             prize: campaign.prize,
@@ -435,6 +433,42 @@ router.post('/rewards', fetchusers, async (req, res) => {
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Server error' });
+    }
+});
+
+router.post('/campaign-stats', fetchusers, async (req, res) => {
+    if (!req.user)
+        return res
+            .status(401)
+            .json({ success: false, message: 'Unauthorized access!' });
+
+    try {
+        const startupId = req.user.id;
+
+        // Find the startup by ID
+        const startup = await Users.findById(startupId).select("campaigns");
+        if (!startup) {
+            return res.status(404).json({ error: 'Startup not found' });
+        }
+
+        // Calculate the counts
+        const totalCampaigns = startup.campaigns.length;
+        const ongoingCampaigns = startup.campaigns.filter(campaign => 
+            campaign.status === 'Assigned' || campaign.status === 'Not Assigned'
+        ).length;
+        const completedCampaigns = startup.campaigns.filter(campaign => campaign.status === 'Reward Sent').length;
+        const assignedCampaigns = startup.campaigns.filter(campaign => campaign.status === 'Assigned').length;
+
+        // Send the response
+        res.status(200).json({
+            totalCampaigns,
+            ongoingCampaigns,
+            completedCampaigns,
+            assignedCampaigns
+        });
+    } catch (error) {
+        console.error('Error in /campaign-stats:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 
