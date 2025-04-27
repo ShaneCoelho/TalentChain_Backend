@@ -326,6 +326,33 @@ router.post('/rewards-received', fetchusers, async (req, res) => {
 }
 );
 
+router.post('/freelancer-stats', fetchusers, async (req, res) => {
+    try {
+        const freelancerId = req.user.id;
+
+        // Fetch the freelancer by ID and select the required fields
+        const freelancer = await Users.findById(freelancerId).select("rewardsreceived assigned_campaigns");
+        if (!freelancer) {
+            return res.status(404).send({ error: "Freelancer not found" });
+        }
+
+        // Calculate the stats
+        const completedCampaigns = freelancer.rewardsreceived.length;
+        const totalRewards = freelancer.rewardsreceived.reduce((sum, reward) => sum + (reward.prize || 0), 0);
+        const assignedCampaignsCount = freelancer.assigned_campaigns.length;
+
+        // Send the response
+        res.status(200).json({
+            completedCampaigns,
+            totalRewards,
+            assignedCampaignsCount
+        });
+    } catch (err) {
+        console.error('Error in /freelancer-stats:', err);
+        return res.status(500).send({ error: "Internal server error" });
+    }
+});
+
 
 
 module.exports = router
