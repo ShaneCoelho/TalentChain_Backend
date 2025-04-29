@@ -472,4 +472,35 @@ router.post('/campaign-stats', fetchusers, async (req, res) => {
     }
 });
 
+router.post('/view-profile', async (req, res) => {
+    try {
+        const { freelancerId } = req.body;
+
+        // Fetch the freelancer by ID and select the required fields
+        const freelancer = await Users.findById(freelancerId).select(
+            "image name email phone about skills education experience projects"
+        );
+
+        if (!freelancer) {
+            return res.status(404).json({ error: "Freelancer not found" });
+        }
+
+        // Send the freelancer's profile details as the response
+        res.status(200).json({
+            profileImage: freelancer.image,
+            name: freelancer.name,
+            email: freelancer.email,
+            phone: freelancer.phone,
+            about: freelancer.about,
+            skills: freelancer.skills,
+            education: freelancer.education,
+            experience: freelancer.experience,
+            projects: freelancer.projects
+        });
+    } catch (error) {
+        console.error('Error in /view-profile:', error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
 module.exports = router
