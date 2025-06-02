@@ -22,6 +22,8 @@ app.use("/api/freelancer", require("./routes/freelancer/campaign"))
 app.use("/api/startup", require("./routes/startup/profile"))
 app.use("/api/startup", require("./routes/startup/campaign"))
 
+require('./cron/updateCampaignsCache');
+
 //Connecting to backend
 app.listen(port, () => {
   console.log(` backend listening at http://localhost:${port}`)

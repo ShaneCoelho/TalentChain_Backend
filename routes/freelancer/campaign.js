@@ -5,6 +5,10 @@ const fetchusers = require('../../middleware/fetchusers');
 const router = express.Router();
 const multer = require('multer');
 const Users = mongoose.model('Users');
+const { createClient } = require('redis');
+
+const redisClient = createClient();
+redisClient.connect().catch(console.error);
 
 
 router.post('/explore-campaigns', async (req, res) => {
@@ -53,6 +57,96 @@ router.post('/explore-campaigns', async (req, res) => {
     }
 });
 
+router.post('/explore-campaigns-redis', async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.body;
+    const skip = (page - 1) * limit;
+
+    // Step 1: Check if Redis has campaigns
+    const redisCampaignIds = await redisClient.lRange('campaigns:list', 0, -1);
+    let campaignArray = [];
+
+    if (redisCampaignIds.length > 0) {
+      const start = skip;
+      const end = skip + limit;
+
+      const redisSlice = redisCampaignIds.slice(start, end);
+
+      for (const campaignId of redisSlice) {
+        const cachedData = await redisClient.get(`campaigns:${campaignId}`);
+        if (cachedData) {
+          campaignArray.push(JSON.parse(cachedData));
+        }
+      }
+
+      console.log("From redis")
+
+      // If Redis didn't have enough to fill the page, fetch rest from MongoDB
+      if (campaignArray.length < limit) {
+        const remaining = limit - campaignArray.length;
+        const mongoSkip = Math.max(0, skip - redisCampaignIds.length);
+
+        const dbCampaigns = await Users.find({ role: "startup" })
+          .select("image name campaigns")
+          .slice("campaigns", [mongoSkip, remaining]);
+
+        dbCampaigns.forEach(campaign => {
+          campaign.campaigns.forEach(camp => {
+            campaignArray.push({
+              startupImage: campaign.image,
+              campaignName: camp.name,
+              startupName: campaign.name,
+              campaignStartDate: camp.start_date,
+              campaignBudget: camp.prize,
+              startupId: campaign._id,
+              campaignId: camp._id,
+              skills: camp.skills
+            });
+          });
+        });
+      }
+    } else {
+      // Redis is empty, fallback to MongoDB for the whole request
+      const campaigns = await Users.find({ role: "startup" })
+        .select("image name campaigns")
+        .slice("campaigns", [skip, limit]);
+
+      campaigns.forEach(campaign => {
+        campaign.campaigns.forEach(camp => {
+          campaignArray.push({
+            startupImage: campaign.image,
+            campaignName: camp.name,
+            startupName: campaign.name,
+            campaignStartDate: camp.start_date,
+            campaignBudget: camp.prize,
+            startupId: campaign._id,
+            campaignId: camp._id,
+            skills: camp.skills
+          });
+        });
+      });
+    }
+
+    // Step 2: Determine total campaign count (still needed for pagination)
+    const totalCampaigns = await Users.aggregate([
+      { $match: { role: "startup" } },
+      { $unwind: "$campaigns" },
+      { $count: "total" }
+    ]);
+
+    const totalRecords = totalCampaigns.length > 0 ? totalCampaigns[0].total : 0;
+    const hasNextPage = skip + limit < totalRecords;
+
+    res.send({
+      campaigns: campaignArray,
+      nextPage: hasNextPage ? page + 1 : null
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send({ error: "Internal server error" });
+  }
+});
 
 
 //Create a route which receives the campaign id and startup id and returns the campaign details to the frontend.
